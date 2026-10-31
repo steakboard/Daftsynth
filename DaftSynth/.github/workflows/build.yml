@@ -1,0 +1,29 @@
+name: Build DaftSynth (Windows)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S DaftSynth -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --target DaftSynth_VST3 DaftSynth_Standalone --parallel
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item -Recurse "build/DaftSynth_artefacts/Release/VST3/DaftSynth.vst3" package/
+          Copy-Item "build/DaftSynth_artefacts/Release/Standalone/DaftSynth.exe" package/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DaftSynth-Windows
+          path: package
