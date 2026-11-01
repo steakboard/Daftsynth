@@ -5,6 +5,9 @@
 #include "Synth.h"
 #include "Drums.h"
 #include "Effects.h"
+#include "Modulation.h"
+#include <unordered_map>
+#include <string>
 #include "Presets.h"
 
 class DaftSynthProcessor : public juce::AudioProcessor
@@ -38,6 +41,11 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    static constexpr int kNumSlots = 12;
+    static juce::StringArray modDestIds, modDestNames;   // paramètres modulables (remplis à la création des paramètres)
+    static juce::StringArray modSrcNames;                // noms des sources de modulation
+    static juce::StringArray syncChoices();              // divisions de synchro tempo
+
     // Données pour les animations de l'interface (écrites par l'audio, lues par l'éditeur)
     static constexpr int kScopeSize = 4096;
     void copyScope (float* dest, int n) const
@@ -53,7 +61,10 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
-    float pv (const char* id) const { return apvts.getRawParameterValue (id)->load(); }
+    float pv (const std::string& id) const { return effVals[(size_t) paramIndex.at (id)]; }   // valeur effective (avec modulation)
+    float bv (const std::string& id) const { return baseVals[(size_t) paramIndex.at (id)]; }  // valeur de base du potard
+    void processSegment (int start, int len, int mode, double ppq, bool havePpq, double bpm, double beatsPerSample);
+    void applyPresetMods (const Preset& preset);
     void readSynthParams (dl::SynthParams& p) const;
     void handleMidi (const juce::MidiMessage& m, int mode);
     void renderDrums (float* out, int n);
@@ -65,6 +76,7 @@ private:
     uint32_t drumCounter = 0;
 
     // Effets
+    dl::Distortion distortion;
     dl::Chorus chorus;
     dl::Phaser phaser;
     dl::StereoDelay delay;
@@ -75,6 +87,29 @@ private:
     std::atomic<int> scopeWrite { 0 };
     std::atomic<uint32_t> blockCounter { 0 };
     std::atomic<float> rmsOut { 0.0f }, peakL { 0.0f }, peakR { 0.0f };
+
+    // Modulation
+    dl::ModEngine modEngine;
+    float modSrcValues[dl::NumModSrc] = {};
+    struct Slot { int src; int dstIdx; float amt; };
+    Slot slots[kNumSlots] = {};
+    int numSlots = 0;
+    int slotSrcIdx[kNumSlots] = {}, slotDstIdx[kNumSlots] = {}, slotAmtIdx[kNumSlots] = {};
+    std::vector<int> destParamIdx;
+
+    // Accès rapide aux paramètres
+    std::vector<juce::RangedAudioParameter*> allParams;
+    std::vector<std::atomic<float>*> rawPtrs;
+    std::unordered_map<std::string, int> paramIndex;
+    std::vector<float> baseVals, effVals, modNorm;
+    std::vector<int> touched;
+    std::vector<char> modFlag;
+    dl::LfoConfig lfoCfg[4];
+    dl::EnvConfig envCfg[2];
+    float macroVals[4] = {};
+    double curBpm = 120.0;
+    float* outL = nullptr;
+    float* outR = nullptr;
 
     std::vector<float> mono;
     double sampleRate = 44100.0;

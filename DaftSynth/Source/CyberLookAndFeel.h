@@ -115,11 +115,42 @@ public:
         g.fillPath (arrow);
     }
 
+    void drawLinearSlider (juce::Graphics& g, int x, int y, int w, int h, float sliderPos, float minPos, float maxPos,
+                           juce::Slider::SliderStyle style, juce::Slider& s) override
+    {
+        using namespace theme;
+        if (style != juce::Slider::LinearHorizontal)
+        {
+            juce::LookAndFeel_V4::drawLinearSlider (g, x, y, w, h, sliderPos, minPos, maxPos, style, s);
+            return;
+        }
+
+        const float cy = (float) y + (float) h * 0.5f;
+        g.setColour (darkGray2);
+        g.fillRect ((float) x, cy - 1.5f, (float) w, 3.0f);
+
+        const double zeroProp = s.valueToProportionOfLength (juce::jlimit (s.getMinimum(), s.getMaximum(), 0.0));
+        const float zeroPos = (float) x + (float) zeroProp * (float) w;
+        const float a = std::min (zeroPos, sliderPos), b = std::max (zeroPos, sliderPos);
+        const float amt = std::fabs ((float) s.valueToProportionOfLength (s.getValue()) - (float) zeroProp);
+        const auto col = purple.interpolatedWith (pink, juce::jlimit (0.0f, 1.0f, amt * 2.0f));
+
+        g.setColour (col.withAlpha (0.18f));
+        g.fillRect (a, cy - 4.5f, b - a, 9.0f);
+        g.setColour (col);
+        g.fillRect (a, cy - 1.5f, b - a, 3.0f);
+
+        g.setColour (lightGray.withAlpha (0.4f));
+        g.fillRect (zeroPos - 0.5f, cy - 5.0f, 1.0f, 10.0f);
+        g.setColour (pink);
+        g.fillRect (sliderPos - 2.0f, cy - 7.0f, 4.0f, 14.0f);
+    }
+
     void drawButtonBackground (juce::Graphics& g, juce::Button& b, const juce::Colour&, bool highlighted, bool down) override
     {
         using namespace theme;
         const auto r = b.getLocalBounds().toFloat().reduced (0.5f);
-        g.setColour (down ? purple.withAlpha (0.45f) : black);
+        g.setColour ((down || b.getToggleState()) ? purple.withAlpha (0.5f) : black);
         g.fillRoundedRectangle (r, 3.0f);
         g.setColour (highlighted ? pink : purple.withAlpha (0.8f));
         g.drawRoundedRectangle (r, 3.0f, 1.2f);

@@ -319,7 +319,7 @@ public:
             for (int v = 0; v < nv; ++v)
                 if (voices[v].active) s += voices[v].render (P, c);
 
-            out[i] += s * 0.4f;
+            out[i] += s * 0.75f;
         }
     }
 

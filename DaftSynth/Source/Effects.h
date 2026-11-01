@@ -179,4 +179,87 @@ inline float distort (float x, float amount)
     const float drive = 1.0f + amount * 15.0f;
     return std::tanh (drive * x) * (1.2f / std::sqrt (drive));
 }
+// Distorsion / saturation complète
+struct DistParams
+{
+    int type = 0;        // 0 Soft, 1 Tube, 2 Hard Clip, 3 Wavefold, 4 Fuzz, 5 Rectify, 6 Tape
+    float amount = 0.0f; // drive 0..1
+    float bias = 0.0f;   // -1..1 (asymétrie, harmoniques paires)
+    float tone = 1.0f;   // 0..1 (filtre passe-bas après la distorsion)
+    float mix = 1.0f;    // 0..1
+    float outDb = 0.0f;  // gain de sortie en dB
+};
+
+class Distortion
+{
+public:
+    void process (float& l, float& r, const DistParams& p, float sr)
+    {
+        if (p.amount < 0.001f) return;
+
+        const float g = 1.0f + p.amount * 15.0f;
+        const float outGain = std::pow (10.0f, p.outDb / 20.0f);
+        const float lpCoef = p.tone >= 0.999f ? 0.0f : std::exp (-kTwoPi * (200.0f * std::pow (100.0f, p.tone)) / sr);
+
+        l = channel (0, l, p, g, outGain, lpCoef);
+        r = channel (1, r, p, g, outGain, lpCoef);
+    }
+
+private:
+    float shape (float x, const DistParams& p, float g, int ch)
+    {
+        const float k = 1.2f / std::sqrt (g);
+        switch (p.type)
+        {
+            case 1: // Tube : asymétrique
+            {
+                const float b = p.bias * 0.8f + 0.25f;
+                return (std::tanh (g * x + b) - std::tanh (b)) * k;
+            }
+            case 2: // Hard clip
+                return std::clamp (g * x + p.bias * 0.5f, -1.0f, 1.0f) * 0.7f;
+            case 3: // Wavefold
+                return std::sin (g * x * 1.5707963f + p.bias) * 0.7f;
+            case 4: // Fuzz
+            {
+                const float u = g * x + p.bias * 0.5f;
+                return (u >= 0.0f ? 1.0f : -1.0f) * (1.0f - std::exp (-std::fabs (u))) * 0.8f;
+            }
+            case 5: // Rectify
+            {
+                const float v = std::tanh (g * x + p.bias * 0.3f);
+                return (v * 0.5f + std::fabs (v) * 0.7f) * 0.8f;
+            }
+            case 6: // Tape : saturation douce + adoucissement des aigus
+            {
+                const float v = std::tanh (g * x * 0.7f + p.bias * 0.3f) * k * 1.1f;
+                tapeLp[ch] += 0.55f * (v - tapeLp[ch]);
+                return tapeLp[ch];
+            }
+            default: // Soft
+                return std::tanh (g * x + p.bias * 0.5f) * k;
+        }
+    }
+
+    float channel (int ch, float x, const DistParams& p, float g, float outGain, float lpCoef)
+    {
+        float y = shape (x, p, g, ch);
+
+        // blocage du continu
+        const float hp = y - dcX[ch] + 0.995f * dcY[ch];
+        dcX[ch] = y;
+        dcY[ch] = hp;
+        y = hp;
+
+        if (lpCoef > 0.0f)
+        {
+            toneLp[ch] = (1.0f - lpCoef) * y + lpCoef * toneLp[ch];
+            y = toneLp[ch];
+        }
+
+        return (x * (1.0f - p.mix) + y * p.mix) * outGain;
+    }
+
+    float dcX[2] = { 0, 0 }, dcY[2] = { 0, 0 }, toneLp[2] = { 0, 0 }, tapeLp[2] = { 0, 0 };
+};
 } // namespace dl

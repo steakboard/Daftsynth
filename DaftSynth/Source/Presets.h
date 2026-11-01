@@ -4,11 +4,20 @@
 
 // Presets d'usine. Chaque preset ne liste que les paramètres qui diffèrent des valeurs par défaut.
 // Les valeurs de "mode" : 0 = Poly (Juno), 1 = Mono (Moog), 2 = Acid (303), 3 = Drums
+// Une assignation de modulation : source (ex. "LFO 1"), destination (id de paramètre, ex. "cutoff"), quantité -1..1
+struct PresetMod
+{
+    const char* src;
+    const char* dst;
+    float amount;
+};
+
 struct Preset
 {
     const char* category;
     const char* name;
     std::vector<std::pair<const char*, float>> values;
+    std::vector<PresetMod> mods;
 };
 
 inline const std::vector<Preset>& factoryPresets()
@@ -122,6 +131,40 @@ inline const std::vector<Preset>& factoryPresets()
         { "FX", "Noise Sweep",
           { { "mode", 0 }, { "saw", 0.0 }, { "noise", 1.0 }, { "cutoff", 300 }, { "res", 0.6 }, { "fenv", 1.0 },
             { "fA", 3.0 }, { "fD", 1.0 }, { "fS", 1.0 }, { "aA", 2.0 }, { "aS", 1.0 }, { "aR", 1.5 }, { "reverbMix", 0.3 } } },
+
+        // ------------------------------------------------------------ MODULATION (LFO / enveloppes / synchro tempo)
+        { "Modulation", "Wobble Bass (LFO 1/8)",
+          { { "mode", 1 }, { "octave", -1 }, { "saw", 1.0 }, { "sub", 0.5 }, { "cutoff", 300 }, { "res", 0.6 }, { "drive", 0.3 },
+            { "fenv", 0.0 }, { "aS", 0.9 }, { "dist", 0.4 }, { "distType", 2 },
+            { "lfo1Shape", 1 }, { "lfo1Sync", 4 } },
+          { { "LFO 1", "cutoff", 0.55f } } },
+
+        { "Modulation", "Trance Gate Pad (1/16)",
+          { { "mode", 0 }, { "saw", 0.7 }, { "osc2", 0.7 }, { "osc2Detune", 10 }, { "cutoff", 5000 }, { "aA", 0.1 }, { "aR", 0.6 },
+            { "chorus", 2 }, { "reverbMix", 0.25 }, { "lfo1Shape", 4 }, { "lfo1Sync", 5 }, { "volume", 0.7 } },
+          { { "LFO 1", "volume", 0.45f } } },
+
+        { "Modulation", "Evolving Pad (random)",
+          { { "mode", 0 }, { "saw", 0.5 }, { "pulse", 0.5 }, { "osc2", 0.5 }, { "osc2Detune", 8 }, { "cutoff", 2500 }, { "res", 0.25 },
+            { "aA", 0.8 }, { "aR", 1.5 }, { "chorus", 3 }, { "reverbMix", 0.3 }, { "reverbSize", 0.8 },
+            { "lfo1Shape", 6 }, { "lfo1Rate", 0.3 }, { "lfo2Shape", 1 }, { "lfo2Rate", 0.11 } },
+          { { "LFO 1", "cutoff", 0.3f }, { "LFO 2", "pw", 0.35f }, { "LFO 1", "osc2Detune", 0.25f } } },
+
+        { "Modulation", "Envelope Pluck",
+          { { "mode", 0 }, { "saw", 0.8 }, { "pulse", 0.3 }, { "cutoff", 1800 }, { "res", 0.3 }, { "fenv", 0.0 },
+            { "aD", 0.35 }, { "aS", 0.0 }, { "aR", 0.2 }, { "env1A", 0.001 }, { "env1D", 0.3 }, { "env1S", 0.0 },
+            { "delayMix", 0.2 }, { "delaySync", 5 }, { "delayFb", 0.4 } },
+          { { "Env 1", "cutoff", 0.6f }, { "Env 1", "res", 0.15f } } },
+
+        { "Modulation", "Velocity Brass",
+          { { "mode", 0 }, { "saw", 1.0 }, { "osc2", 1.0 }, { "osc2Detune", 5 }, { "cutoff", 700 }, { "res", 0.15 },
+            { "aA", 0.04 }, { "aS", 0.9 }, { "aR", 0.15 }, { "chorus", 1 } },
+          { { "Velocity", "cutoff", 0.5f }, { "Mod Wheel", "cutoff", 0.3f } } },
+
+        { "Modulation", "Macro Morph Lead",
+          { { "mode", 1 }, { "saw", 0.8 }, { "pulse", 0.4 }, { "osc2", 0.5 }, { "osc2Detune", 9 }, { "cutoff", 1200 }, { "res", 0.4 },
+            { "aS", 0.9 }, { "glide", 0.06 }, { "delayMix", 0.2 }, { "delaySync", 4 }, { "macro1", 0.0 } },
+          { { "Macro 1", "cutoff", 0.7f }, { "Macro 1", "dist", 0.5f }, { "Macro 1", "res", 0.3f } } },
 
         // ------------------------------------------------------------ DRUMS (notes MIDI 35-57)
         { "Drums", "TR-808 Kit",         { { "mode", 3 }, { "kit", 0 } } },
