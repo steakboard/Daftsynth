@@ -85,7 +85,7 @@ public:
         return l;
     }
 
-    juce::Font getComboBoxFont (juce::ComboBox&) override { return theme::mono (12.0f); }
+    juce::Font getComboBoxFont (juce::ComboBox&) override { return theme::mono (11.0f); }
     juce::Font getPopupMenuFont() override { return theme::mono (13.0f); }
     juce::Font getTextButtonFont (juce::TextButton&, int) override { return theme::mono (13.0f, true); }
 

@@ -23,6 +23,9 @@ struct Preset
 inline const std::vector<Preset>& factoryPresets()
 {
     static const std::vector<Preset> presets = {
+        // Preset 0 : réglages par défaut (correspond à l'état du plugin quand on le charge)
+        { "Init", "Init (reglages par defaut)", {} },
+
         // ------------------------------------------------------------ BASSES
         { "Bass", "Acid 303 Squelch",
           { { "mode", 2 }, { "saw", 1.0 }, { "cutoff", 450 }, { "res", 0.82 }, { "fenv", 0.85 }, { "keytrack", 0.35 },
