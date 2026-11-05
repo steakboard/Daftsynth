@@ -12,6 +12,7 @@ enum ModSrc
     SrcVelocity, SrcWheel,
     SrcMacro1, SrcMacro2, SrcMacro3, SrcMacro4,
     SrcRandom,
+    SrcStep,
     NumModSrc
 };
 
@@ -31,6 +32,13 @@ struct LfoConfig
     float rate = 1.0f;   // Hz (si pas de synchro)
     int sync = 0;        // index de division (0 = libre)
     bool retrig = false; // redémarre à chaque note
+};
+
+struct StepConfig
+{
+    int len = 8, sync = 5;
+    float rate = 8.0f, glide = 0.0f;
+    float steps[16] = { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
 };
 
 struct EnvConfig
@@ -101,7 +109,7 @@ public:
     // Avance de n échantillons et écrit les valeurs des sources dans out[NumModSrc]
     // (LFO : -1..1 ; enveloppes, vélocité, molette, macros, random : 0..1)
     void update (int n, double ppq, bool havePpq, double bpm,
-                 const LfoConfig cfg[4], const EnvConfig ecfg[2], const float macros[4], float out[NumModSrc])
+                 const LfoConfig cfg[4], const EnvConfig ecfg[2], const float macros[4], const StepConfig& sc, float out[NumModSrc])
     {
         out[SrcNone] = 0.0f;
 
@@ -160,6 +168,27 @@ public:
             out[SrcEnv1 + e] = lvl;
         }
 
+        // séquenceur de pas : valeur du pas courant (0..1), avec lissage (glide) optionnel
+        {
+            const int len = std::clamp (sc.len, 1, 16);
+            const float cpb = syncCyclesPerBeat (sc.sync);
+            int idx;
+            if (cpb > 0.0f && havePpq)
+            {
+                idx = (int) (std::floor (ppq * (double) cpb)) % len;
+                if (idx < 0) idx += len;
+            }
+            else
+            {
+                stepCycles += (cpb > 0.0f ? (float) (bpm / 60.0 * (double) cpb) : sc.rate) * (float) n / sr;
+                idx = (int) std::floor (stepCycles) % len;
+            }
+            const float target = sc.steps[idx];
+            if (sc.glide <= 0.001f) stepVal = target;
+            else stepVal += (target - stepVal) * (1.0f - std::exp (-(float) n / (sr * (0.002f + sc.glide * 0.25f))));
+            out[SrcStep] = stepVal;
+        }
+
         out[SrcVelocity] = vel;
         out[SrcWheel] = wheel;
         for (int m = 0; m < 4; ++m) out[SrcMacro1 + m] = macros[m];
@@ -176,5 +205,6 @@ private:
     float sr = 44100.0f;
     int held = 0;
     float vel = 0.0f, wheel = 0.0f, noteRand = 0.5f;
+    float stepCycles = 0.0f, stepVal = 0.5f;
 };
 } // namespace dl

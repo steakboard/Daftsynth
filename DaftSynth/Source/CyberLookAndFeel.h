@@ -85,9 +85,9 @@ public:
         return l;
     }
 
-    juce::Font getComboBoxFont (juce::ComboBox&) override { return theme::mono (12.0f); }
+    juce::Font getComboBoxFont (juce::ComboBox&) override { return theme::mono (11.0f); }
     juce::Font getPopupMenuFont() override { return theme::mono (13.0f); }
-    juce::Font getTextButtonFont (juce::TextButton&, int) override { return theme::mono (15.0f, true); }
+    juce::Font getTextButtonFont (juce::TextButton&, int) override { return theme::mono (13.0f, true); }
 
     void drawComboBox (juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox&) override
     {
@@ -119,6 +119,20 @@ public:
                            juce::Slider::SliderStyle style, juce::Slider& s) override
     {
         using namespace theme;
+        if (style == juce::Slider::LinearVertical)
+        {
+            const float prop = (float) s.valueToProportionOfLength (s.getValue());
+            const auto col = purple.interpolatedWith (pink, prop);
+            g.setColour (darkGray2);
+            g.fillRect ((float) x + 2.0f, (float) y, (float) w - 4.0f, (float) h);
+            g.setColour (col.withAlpha (0.25f));
+            g.fillRect ((float) x, sliderPos, (float) w, (float) (y + h) - sliderPos);
+            g.setColour (col);
+            g.fillRect ((float) x + 3.0f, sliderPos, (float) w - 6.0f, (float) (y + h) - sliderPos);
+            g.setColour (lightGray);
+            g.fillRect ((float) x + 1.0f, sliderPos - 1.5f, (float) w - 2.0f, 3.0f);
+            return;
+        }
         if (style != juce::Slider::LinearHorizontal)
         {
             juce::LookAndFeel_V4::drawLinearSlider (g, x, y, w, h, sliderPos, minPos, maxPos, style, s);

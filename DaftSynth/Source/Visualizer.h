@@ -260,7 +260,7 @@ public:
         using namespace theme;
         const auto area = getLocalBounds();
         const juce::String text = "DAFTSYNTH";
-        g.setFont (mono (28.0f, true));
+        g.setFont (mono (22.0f, true));
 
         const int dx = 1 + (int) (glitch * 4.0f);
         g.setColour (purple.withAlpha (0.9f));
@@ -282,7 +282,7 @@ public:
 
         g.setFont (mono (9.0f));
         g.setColour (lightGray.withAlpha (0.55f));
-        g.drawText ("v0.1", area.withTrimmedLeft (168).withTrimmedBottom (14), juce::Justification::bottomLeft);
+        g.drawText ("v0.1", area.withTrimmedLeft (124).withTrimmedBottom (12), juce::Justification::bottomLeft);
     }
 
 private:

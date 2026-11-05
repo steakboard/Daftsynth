@@ -6,6 +6,8 @@
 #include "Drums.h"
 #include "Effects.h"
 #include "Modulation.h"
+#include "SampleEngine.h"
+#include "Arp.h"
 #include <unordered_map>
 #include <string>
 #include "Presets.h"
@@ -45,6 +47,31 @@ public:
     static juce::StringArray modDestIds, modDestNames;   // paramètres modulables (remplis à la création des paramètres)
     static juce::StringArray modSrcNames;                // noms des sources de modulation
     static juce::StringArray syncChoices();              // divisions de synchro tempo
+    void randomizeSound (bool mutate);
+    // ---- Sampler
+    bool loadSampleFile (const juce::File& f);
+    juce::String getSampleName() const { auto d = sampler.getData(); return d ? d->name : juce::String(); }
+    void startRecording();                  // resampling interne : enregistre la sortie du plugin
+    void stopRecording();
+    bool isRecording() const { return recState.load() == 1; }
+    bool pollRecording();                   // à appeler régulièrement : finalise l'enregistrement terminé
+    dl::SampleEngine sampler;
+    juce::AudioFormatManager formats;
+
+    // ---- Presets utilisateur, texte (copier / coller, pour l'IA), snapshots Morph
+    static juce::File userPresetDir();
+    juce::Array<juce::File> listUserPresets() const;
+    juce::String exportPresetText (const juce::String& name) const;
+    bool importPresetText (const juce::String& text, juce::String* nameOut = nullptr);
+    bool saveUserPreset (const juce::String& name);
+    bool loadUserPreset (const juce::File& f);
+    juce::String describeParamsForAI() const;
+    void storeSnapshot (int k);
+    bool snapshotValid (int k) const { return snapValid[k]; }
+    void clearSnapshots() { for (int k = 0; k < 4; ++k) snapValid[k] = false; }
+
+    void applyFmAlgo (int index);                       // charge un algorithme FM (matrice + ratios + sorties)
+    static juce::StringArray fmAlgoNames();                   // DICE (tout) / MUT (petite variation)
 
     // Données pour les animations de l'interface (écrites par l'audio, lues par l'éditeur)
     static constexpr int kScopeSize = 4096;
@@ -76,7 +103,38 @@ private:
     uint32_t drumCounter = 0;
 
     // Effets
+    // enregistrement (resampling)
+    juce::AudioBuffer<float> recBuf;
+    std::atomic<int> recState { 0 };        // 0 inactif, 1 en cours, 2 arrêt demandé
+    std::atomic<int> recPos { 0 };
+    int recStopTicks = 0;
+    juce::String samplePath;
+    // arpégiateur, séquenceur de pas, macros intelligentes, morph
+    dl::Arpeggiator arp;
+public:
+    std::atomic<int> arpLastNote { -1 };
+private:
+    double arpFreeBeat = 0.0;
+    bool arpActive = false;
+    dl::StepConfig stepCfg;
+    int pmIdx[8] = {}, morphXIdx = 0, morphYIdx = 0, morphOnIdx = 0;
+    struct MacroMod { int idx; float off; };
+    std::vector<MacroMod> macroMods;
+    std::vector<int> morphable;
+    std::vector<float> snap[4];
+    bool snapValid[4] = { false, false, false, false };
+    void applyMorphToBase();
+    void computeMacroMods();
+    void releaseArp();
     dl::Distortion distortion;
+    dl::WowFilter wow;
+    float wowPhase = 0.0f, wowRand = 0.0f;
+    juce::Random rnd;
+    dl::Flanger flanger;
+    dl::Equalizer eq;
+    dl::MultiBand ott;
+    dl::Limiter limiter;
+    dl::ModDelay revPre[2];
     dl::Chorus chorus;
     dl::Phaser phaser;
     dl::StereoDelay delay;
@@ -96,6 +154,7 @@ private:
     int numSlots = 0;
     int slotSrcIdx[kNumSlots] = {}, slotDstIdx[kNumSlots] = {}, slotAmtIdx[kNumSlots] = {};
     std::vector<int> destParamIdx;
+    int fmRIdx[6] = {}, fmOIdx[6] = {}, fmEIdx[6] = {}, fmMIdx[6][6] = {};
 
     // Accès rapide aux paramètres
     std::vector<juce::RangedAudioParameter*> allParams;
